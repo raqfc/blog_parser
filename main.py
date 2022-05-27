@@ -5,6 +5,7 @@ import re
 import shutil
 import time
 
+import unidecode
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -12,6 +13,20 @@ from selenium.webdriver.common.by import By
 
 
 def parseFile(path):
+    s = Service(cromeDriverPath)
+    driver = webdriver.Chrome(service=s)
+
+    driver.get('https://www.prowaretech.com/articles/current/tools/convert-html-to-json')
+    time.sleep(1)
+    driver.execute_script("closeCookies()")
+    time.sleep(1)
+
+    search_box = driver.find_element(by=By.NAME, value='html')
+    btn_submit = driver.find_element(by=By.NAME, value='submit')
+    pretty_json_box = driver.find_element(by=By.ID, value='pretty')
+
+    search_box.clear()
+
     htmlFile = ""
     for file_name in os.listdir(path):
         # construct full file path
@@ -22,31 +37,18 @@ def parseFile(path):
             htmlFile = getHtmlFile(source)
             break
 
-    s = Service(cromeDriverPath)
-    driver = webdriver.Chrome(service=s)
 
-    driver.get('https://www.prowaretech.com/articles/current/tools/convert-html-to-json')
-    time.sleep(2)
-    driver.execute_script("closeCookies()")
-    time.sleep(1)
-    #
-    search_box = driver.find_element(by=By.NAME, value='html')
-    btn_submit = driver.find_element(by=By.NAME, value='submit')
-    pretty_json_box = driver.find_element(by=By.ID, value='pretty')
 
     soup = BeautifulSoup(htmlFile, 'html.parser')
     htmlContent = soup.find_all("div", {"class": "content-inner"})[0]
-    replacedHtmlContentString = str(htmlContent).replace("content-inner", "post-content")
+    htmlContent.attrs['class'] = "post-content"
+    replacedHtmlContentString = str(htmlContent)
 
     search_box.send_keys(replacedHtmlContentString)
     time.sleep(1)
     btn_submit.click()
     time.sleep(1)
-    # html_to_json.convert(replacedHtmlContentString)
-    # jsonContent = html_to_json.convert(replacedHtmlContentString)
     jsonContent = json.loads(pretty_json_box.get_attribute("value"))
-
-    time.sleep(1)
 
     data = {
         "id": "1",
@@ -73,7 +75,7 @@ def parseFile(path):
                 data["abstract"] = meta.attrs['content']
             elif meta.attrs['property'] == 'og:title':
                 data["title"] = meta.attrs['content']
-                data["slug"] = re.sub("(\s)", "-", meta.attrs['content']).lower()
+                data["slug"] = unidecode.unidecode(re.sub("(\s)", "-", meta.attrs['content']).lower())
             elif meta.attrs['property'] == 'og:type':
                 data["category"] = meta.attrs['content']
             elif meta.attrs['property'] == 'article:published_time':
@@ -106,7 +108,7 @@ def parseFile(path):
                         },
         prefixYear = year
         prefixMonth = month
-        data["prefix"] = year + "/" + month,
+        data["prefix"] = str(year + "/" + month),
 
     toc = []
 
@@ -141,12 +143,12 @@ def parseFile(path):
     data["body"] = jsonContent
 
     # escrevendo resultado
-    savePath = baseSavePath + prefixYear + "/" + prefixMonth + "/"
+    savePath = baseSavePath + prefixYear + "/" + prefixMonth + "/" + data["slug"] + "/"
 
     for file_name in os.listdir(path):
         source = path + file_name
         if os.path.isdir(source):
-            shutil.copytree(source, savePath + "/files")
+            shutil.copytree(source, savePath + "files")
             break
 
     os.makedirs(os.path.dirname(savePath), exist_ok=True)
@@ -173,4 +175,10 @@ if __name__ == '__main__':
     # andar por todas as pastas do baseSourcePath
     for file_name in os.listdir(baseSourcePath):
         if os.path.isdir(baseSourcePath + file_name):
-            parseFile(baseSourcePath + file_name + "/")
+            dirPath = baseSourcePath + file_name + "/"
+            try:
+                print("parsing" + dirPath)
+                parseFile(dirPath)
+            except Exception as e:
+                print("error parsing " + dirPath)
+                print(e)
