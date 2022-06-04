@@ -4,7 +4,6 @@ import pyautogui
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-
 REMOTE_URL = ""
 cromeDriverPath = "/Users/raquelfreire/Documents/chromedriver"
 arrayOfCategories = ["https://volan.app.br/category/controle-de-processos/page/2/",
