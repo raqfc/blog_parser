@@ -159,13 +159,6 @@ def parseFile(path, blogId):
     soup = BeautifulSoup(htmlFile, 'html.parser')
     htmlContent = soup.find_all("div", {"class": "content-inner"})[0]
     htmlContent.attrs['class'] = "post-content"
-    replacedHtmlContentString = str(htmlContent)
-
-    search_box.send_keys(replacedHtmlContentString)
-    time.sleep(1)
-    btn_submit.click()
-    time.sleep(1)
-    jsonContent = json.loads(pretty_json_box.get_attribute("value"))
 
     data = {
         "id": str(blogId),
@@ -240,24 +233,13 @@ def parseFile(path, blogId):
     if oldImgPath is not None:
         splitted = oldImgPath.split("/")
 
-        year = '2021'
-        month = '01'
-
-        isMonth = False
-        for part in splitted:
-            if part == '2021':
-                isMonth = True
-            elif isMonth:
-                month = part
-                break
-
         fileName = splitted[-1]
 
         imgExtention = fileName.split(".")[-1]
         imageFileName = fileName
         img = soup.find_all("span", {"class": "post-featured-img"})[0].findChildren("img")[0]
         data["image"] = {
-            "src": "blogs/" + year + "/" + month + "/" + fileName,
+            "src": "blogs/" + prefixYear + "/" + prefixMonth + "/" + fileName,
             "alt": img["alt"],
             "format": imgExtention
         }
@@ -304,6 +286,7 @@ def parseFile(path, blogId):
         if child.name == "h2":
             titleIndex += 1
             subtitleIndex = 1
+            child.attrs['id'] = "title#" + str(titleIndex)
             toc.append(
                 {
                     "id": "title#" + str(titleIndex),
@@ -311,6 +294,7 @@ def parseFile(path, blogId):
                 }
             )
         elif child.name == "h3":
+            child.attrs['id'] = "subtitle#" + str(titleIndex) + "." + str(subtitleIndex)
             toc.append(
                 {
                     "id": "subtitle#" + str(titleIndex) + "." + str(subtitleIndex),
@@ -319,6 +303,14 @@ def parseFile(path, blogId):
                 }
             )
             subtitleIndex += 1
+
+    replacedHtmlContentString = str(htmlContent)
+
+    search_box.send_keys(replacedHtmlContentString)
+    time.sleep(1)
+    btn_submit.click()
+    time.sleep(1)
+    jsonContent = json.loads(pretty_json_box.get_attribute("value"))
 
     data["seo"] = {
         "meta": metasJson
@@ -373,7 +365,7 @@ if __name__ == '__main__':
         if os.path.isdir(baseSourcePath + file_name):
             dirPath = baseSourcePath + file_name + "/"
             try:
-                print("parsing " + dirPath + " blogId = " + blogId)
+                print("parsing " + dirPath + " blogId = " + str(blogId))
                 parseFile(dirPath, blogId)
                 blogId = blogId + 1
             except Exception as e:
